@@ -1,0 +1,57 @@
+name: Automated Data Preprocessing
+
+on:
+  push:
+    branches:
+      - main 
+    paths:
+      # Jalankan workflow hanya jika ada perubahan di file/folder ini:
+      - 'telco-dataset_raw/telco_dataset.csv'  
+      - 'preprocessing/automate_Reisya-Junita.py'     
+  workflow_dispatch: # Ini menjalankan workflow secara manual dari tab Actions
+
+jobs:
+  preprocess-data:
+    runs-on: ubuntu-latest # Menggunakan environment Linux terbaru
+
+    steps:
+      # Langkah 1: Mengambil (checkout) kode dari repository kamu ke runner Actions
+      - name: Checkout repository content
+        uses: actions/checkout@v4
+        with:
+          # Token ini dibutuhkan agar workflow bisa melakukan push kembali ke repository kamu
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Langkah 2: Menyiapkan environment Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12.7' 
+
+      # Langkah 3: Install dependencies (library) yang dibutuhkan
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r preprocessing/requirements.txt # Langsung dari root repository
+
+      # Langkah 4: Menjalankan script otomasi preprocessing
+      - name: Run preprocessing script
+        working-directory: ./preprocessing # Mengatur direktori kerja untuk langkah ini
+        run: python automate_Reisya-Junita.py # Menjalankan script
+
+      # Langkah 5: Commit dan push file dataset_processed.csv yang baru dihasilkan
+      - name: Commit and push preprocessed data
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # Path ini relatif dari root repository
+          git add preprocessing/telco-dataset_preprocessing/dataset_processed.csv 
+          
+          if [[ -n $(git status --porcelain) ]]; then
+            git commit -m "Automated preprocessing: Update processed data (via GitHub Actions)"
+            git push
+            echo "Processed data committed and pushed."
+          else
+            echo "No changes to commit in processed data."
+          fi
